@@ -13,7 +13,10 @@
 #include <SPI.h>
 #include <avr/pgmspace.h>
 
-const int relayPin = 7;      // the number of the LED pin
+const int relayPin   = 7;      // the number of the LED pin
+const int grnLedPin  = 4;      // the number of the LED pin
+const int redLedPin  = 3;      // the number of the LED pin
+const int quickFlash = 500;    // duration in ms for quickly flashing a LED
 #define SAD 10
 #define RST 9
 
@@ -41,30 +44,55 @@ MFRC522 nfc(SAD, RST);
 
 
 void setup() {
-  // Set relay digital pin as output
-  pinMode(relayPin, OUTPUT);
-  digitalWrite(relayPin, LOW);
+  // Reset digital outputs
+  pinMode(relayPin,  OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  pinMode(grnLedPin, OUTPUT);
+  
+  digitalWrite(relayPin,  LOW);
+  digitalWrite(redLedPin, LOW);
+  digitalWrite(grnLedPin, LOW);
 
   SPI.begin();
   Serial.begin(115200);
 
   Serial.println("Looking for MFRC522.");
   if (nfc.digitalSelfTestPass()) {
-      Serial.println("Digital self test by MFRC522 passed.");
+    Serial.println("Digital self test by MFRC522 passed.");
   } else {
-      Serial.println("Digital self test by MFRC522 failed.");
+    Serial.println("Digital self test by MFRC522 failed.");
+    while(1) {
+      flashLed(redLedPin, quickFlash);
+      delay(quickFlash);
+      flashLed(redLedPin, quickFlash);
+      delay(2000);
+    }
   }
 
   uint8_t version = nfc.getFirmwareVersion();
   if (! version) {
     Serial.print("Didn't find MFRC522 board.");
-    while(1); //halt
+    while(1) {
+      flashLed(redLedPin, quickFlash);
+      delay(quickFlash);
+      flashLed(redLedPin, quickFlash);
+      delay(quickFlash);
+      flashLed(redLedPin, quickFlash);
+      delay(2000);
+    }
   }
 
   Serial.print("Found chip MFRC522 ");
   Serial.print("Firmware ver. 0x");
   Serial.print(version, HEX);
   Serial.println(".");
+  
+  // Signal self-test success
+  flashLed(grnLedPin, quickFlash);
+  delay(quickFlash);
+  flashLed(grnLedPin, quickFlash);
+  delay(quickFlash);
+  flashLed(grnLedPin, quickFlash);
   
   nfc.begin();
   
@@ -137,23 +165,34 @@ void loop() {
         switch(state) {
           case 0:
             // Activate relay
-            digitalWrite(relayPin, HIGH);
+            digitalWrite(relayPin,  HIGH);
+            digitalWrite(grnLedPin, HIGH);
             Serial.println("Authorized. Activating relay.");    
             state = 1;
             delay(2000);
             break;
           default:
             // Deactivate relay
-            digitalWrite(relayPin, LOW);
+            digitalWrite(relayPin,  LOW);
+            digitalWrite(grnLedPin, LOW);
             Serial.println("Authorized. De activating relay.");    
             state = 0;
             delay(2000);
         }
       } 
+      else {
+        flashLed(redLedPin, 2000);
+      }
     }
     // Stop the tag and get ready for reading a new tag.
     nfc.haltTag();
   } 
   
   delay(1000);
+}
+
+void flashLed(const int pinNum, const int duration_ms) {
+  digitalWrite(pinNum, HIGH);
+  delay(duration_ms);
+  digitalWrite(pinNum, LOW);
 }
