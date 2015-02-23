@@ -13,12 +13,17 @@
 #include <SPI.h>
 #include <avr/pgmspace.h>
 
-const int relayPin   = 7;      // the number of the LED pin
-const int grnLedPin  = 4;      // the number of the LED pin
-const int redLedPin  = 3;      // the number of the LED pin
+// GPIO pin numbers
+const int redLedPin   = 3;      // Red LED
+const int grnLedPin   = 4;      // Green LED
+const int radioCsnPin = 5;      // NRF24L01+ CSN signal
+const int radioCePin  = 6;      // NRF24L01+ CE signal
+const int relayPin    = 7;      // Relay
+const int rfResetPin  = 9;      // RC522 reset signal
+const int rfSdaPin    = 10;     // RC522 SDA signal
+
+// Program constants
 const int quickFlash = 500;    // duration in ms for quickly flashing a LED
-#define SAD 10
-#define RST 9
 
 #define READER_NUMBER B10000001     // ID for this device (starts with 1)
 
@@ -40,7 +45,7 @@ prog_uchar const authKeys[1024] PROGMEM = {0xB3, 0xED, 0xE6, 0xC7,
                                            0x70, 0x40, 0x84, 0x0B};
 int  numKeys = 0;
 
-MFRC522 nfc(SAD, RST);
+MFRC522 nfc(rfSdaPin, rfResetPin);
 
 
 void setup() {
