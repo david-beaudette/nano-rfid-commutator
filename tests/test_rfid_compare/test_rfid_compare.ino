@@ -9,7 +9,7 @@
    
 */
 
-#include "LIB_MFRC522.h"
+#include "MFRC522.h"
 #include <SPI.h>
 #include <avr/pgmspace.h>
 
