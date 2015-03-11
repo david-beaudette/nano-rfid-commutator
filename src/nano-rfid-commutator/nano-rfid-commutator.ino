@@ -17,8 +17,9 @@
 #include <Event.h>
 #include <Timer.h>
 
-#include "AccessEvents.h"
+#include "AccessEvent.h"
 #include "AccessTable.h"
+#include "LinkCommand.h"
 
 // GPIO pin numbers
 const int redLedPin   = 3;      // Red LED
@@ -52,7 +53,14 @@ Timer t;
 unsigned long eventTime = 0UL;
 
 // Declare table of events
-AccessEvent events[100];
+AccessEvent events[MAX_NUM_EVENTS];
+int curNumEvents = 0;
+
+// Declare table of users
+AccessTable table;
+
+// Declare commmand manager
+LinkCommand link(&radio, &table, &events[0]);
 
 // State variable
 int state;           // one the following state:  
@@ -120,8 +128,11 @@ void loop() {
   {
     if(!getCommand()) {
       Serial.println("Fatal error with received command.");
+      stall();
     }
   }
+  // TODO: Check for proximity card
+  
   // Wait before checking for another packet
   flashLed(redLedPin, slowFlash);
   delay(slowFlash);
@@ -143,44 +154,53 @@ inline void stall() {
 }
 
 int getCommand() {
-  // Dump the payloads until we've gotten everything
-  uint8_t rx_buf[7] = {0,0,0,0,0,0,0};;
-  uint8_t tx_buf[9] = {0xAF,0,0,0,0,0,0,0,0};
+  // Initialize the message buffers 
+  byte rx_buf[7] = {0,0,0,0,0,0,0};
+  // tx_buf[0] is the current state of the Arduino
+  byte tx_buf[9] = {0xAF,0,0,0,0,0,0,0,0};
   
-  int table_count = 0;
-
-  // Fetch the payload, and see if this was the last one.
+  // Read the command byte from the RX buffer
   radio.read(&rx_buf[0], 1);
   
   // Delay just a little bit to let the other unit
   // make the transition to receiver
   delay(20);
 
-  // Treat the table update command differently: command is 
-  // accompanied with a table entry we have to reply quickly
+  // Table update command is accompanied with a table entry
   if(rx_buf[0] == 0xA4) {
+    // Initialise reply with proper command
+    tx_buf[1] = 0xA4;
+    
+    // Read the whole buffer sent with command
     radio.read(&rx_buf[0], 7);
-    table_count = rx_buf[1];
+    
+    int table_count = rx_buf[1];
     for (int i = 1; i < table_count; i++) {
-      
+      // Flush buffers and switch to TX mode
       radio.stopListening();
-      tx_buf[1] = 0xA4;
-      tx_buf[2] = 0xD0 + (i % 3) + 1;
+      
+      // Update user entry in table
+      updateResult = table.setAuth(&rx_buf[3], rx_buf[2]);
+      tx_buf[2] = mapTableUpdateResult(updateResult);
+      
+      // Send result
       if(!radio.write(&tx_buf[0], 3)) 
           printf("Unable to send back data.\n\r");  
         
+      // Setup and wait for next table entry
       radio.startListening();
-      // Read next table entry
       while(!radio.available()) {delay(1);}
       radio.read(&rx_buf[0], 7);
       delay(20);
     }
     // Reply for last entry
     radio.stopListening();
-    tx_buf[1] = 0xA4;
-    tx_buf[2] = 0xD0 + (table_count % 2) + 1;
+    // Update last user entry in table
+    updateResult = table.setAuth(&rx_buf[3], rx_buf[2]);
+    tx_buf[2] = mapTableUpdateResult(updateResult);
+    // Send result
     if(!radio.write(&tx_buf[0], 3)) 
-        printf("Unable to send back data.\n\r");
+      printf("Unable to send back data.\n\r");
   }
 
   // First, stop listening so we can talk
@@ -206,19 +226,14 @@ int getCommand() {
       break; 
       
     case 0xA3:
-      printf("Received dump logging command.\n\r");
       tx_buf[1] = 0xA3;
       if(!radio.write(&tx_buf[0], 9)) 
         printf("Unable to send back data.\n\r");  
       break;  
       
-    case 0xA4:        
-      printf("Received table update command.\n\r");
-      printf("  There were %d entries to update.\n\r", table_count);
-      printf("  Last user is authorised if %d == 1.\n\r", rx_buf[2]);
-      printf("  Last user code is %d, %d, %d, %d.\n\r", rx_buf[3], rx_buf[4], rx_buf[5], rx_buf[6]);
-      break;  
-      
+    case 0xA4:
+      printf("Received dump logging command.\n\r");
+           
     case 0xA5:
       printf("Received check memory command.\n\r");
       tx_buf[1] = 0xA5;
@@ -240,3 +255,23 @@ int getCommand() {
   // Resume listening so we catch the next command.
   radio.startListening();
 }
+
+// Maps the AccessTable::setUserAuth return argument to
+// the proper table update command answer
+byte mapTableUpdateResult(int retArg) {
+  switch(retArg) {
+    case -2:
+      // Table full
+      return 0xDF;
+    case -1:
+      // New user
+      return 0xD3;
+    case 0:
+      // No update required 
+      return 0xD1;
+    case 1:
+      // Updated authorization
+      return 0xD2;
+  }
+}
+
