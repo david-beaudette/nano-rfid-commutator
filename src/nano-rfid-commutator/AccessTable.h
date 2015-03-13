@@ -6,8 +6,8 @@
 #ifndef __ACCESSTABLE__
 #define __ACCESSTABLE__
 
-#include <EEPROM.h>
 #include "Arduino.h"
+#include <EEPROM.h>
 
 #define MAX_USER_SIZE    248
 #define MAX_EEPROM_SIZE 1024
