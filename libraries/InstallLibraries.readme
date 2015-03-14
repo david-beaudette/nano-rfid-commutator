@@ -1,8 +1,9 @@
 The following libraries are required (.zip are included and correspond to the version indicated):
 
-https://github.com/maniacbug/RF24.git       -> commit ebcd0d1d0b3061fcb57444e1dbe5829ef25705cd
-https://github.com/ljos/MFRC522.git         -> commit 59d90532dd9ffe2ba5ae5be64e15a3fbad7f813b
-https://github.com/JChristensen/Timer.git   -> commit 373a2cfcee6587b98b138f06a7a2d57def63b8c4
+https://github.com/maniacbug/RF24                                     -> commit ebcd0d1d0b3061fcb57444e1dbe5829ef25705cd
+https://github.com/ljos/MFRC522                                       -> commit 59d90532dd9ffe2ba5ae5be64e15a3fbad7f813b
+https://github.com/JChristensen/Timer                                 -> commit 373a2cfcee6587b98b138f06a7a2d57def63b8c4
+https://github.com/monkeyboard/Wiegand-Protocol-Library-for-Arduino   -> commit 6efe59c4af176697671152f02d38a8de971763d7
 
 
 To install libraries for the Arduino IDE, follow steps found at:
