@@ -31,13 +31,13 @@ const int quickFlash = 500;    // duration in ms for quickly flashing a LED
 const byte mode = 0; // communication mode
 byte data[100];      // data buffer
 int status;          // return status for function calls
-int state;           // one the following state:  
-                     // 0: Idle
-                     // 1: Activated
-                     // 2: Timeout
-                     // 3: Disabled
-                     // 4: Enabled
-                     // 5: Triggered once
+// State variable
+int state;  // one the following state:  
+            //  0 - Enabled: As commanded by server: relay activated until told otherwise
+            //  1 - Disabled: As commanded by server: relay deactivated until told otherwise
+            //  2 - Activated: Valid RFID triggered: relay activated until valid RFID triggers
+            //  3 - Idle: Relay deactivated, wait for card or server command
+            //  4 - TriggeredOnce: In dual RFID activation mode, valid RFID triggered: waiting for a second one
 
 // Data would normally go in EEPROM
 prog_uchar const authKeys[1024] PROGMEM = {0xB3, 0xED, 0xE6, 0xC7,
