@@ -40,9 +40,9 @@ int state;  // one the following state:
             //  4 - TriggeredOnce: In dual RFID activation mode, valid RFID triggered: waiting for a second one
 
 // Data would normally go in EEPROM
-prog_uchar const authKeys[1024] PROGMEM = {0xB3, 0xED, 0xE6, 0xC7,
-                                           0x5D, 0x84, 0xF7, 0x54, 
-                                           0x70, 0x40, 0x84, 0x0B};
+const unsigned char authKeys[1024] PROGMEM = {0xB3, 0xED, 0xE6, 0xC7,
+                                              0x5D, 0x84, 0xF7, 0x54, 
+                                              0x70, 0x40, 0x84, 0x0B};
 int  numKeys = 0;
 
 MFRC522 nfc(rfSdaPin, rfResetPin);
