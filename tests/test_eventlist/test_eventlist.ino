@@ -39,6 +39,9 @@ unsigned long EventList::event_list_counter;
 // Declare list of events
 EventList eventList(&t, 50);
 
+// Card tag read flag
+int read_tag_flag = 1;
+
 const int quickFlash = 500;    // duration in ms for quickly flashing a LED
 const int slowFlash  = 1000;   // duration in ms for slowly flashing a LED
 
@@ -88,46 +91,30 @@ void loop() {
   //  0x34 : ‘Unknown’ (unknown user card detected).
   int event_type = 0x30;
   
-  byte card_status;
-  byte data[MAX_LEN];
-  byte tag[5];
+  byte type[2];
+  byte tag[4];
   
   // Update  timer
   t.update();
   
-  // Check for cards, log events
-  card_status = nfc.requestTag(MF1_REQIDL, data);
-
-  if (card_status == MI_ERR) {
-    Serial.println("Error reading card.");  
-    Stall();  
-  }
-  else if (card_status == MI_NOTAGERR) {
-    Serial.println("No tag detected.");
-  }
-  else if (card_status == MI_OK) {
-    Serial.println("Tag detected.");
-    Serial.print("Type: ");
-    Serial.print(data[0], HEX);
-    Serial.print(", ");
-    Serial.println(data[1], HEX);
-
-    // calculate the anti-collision value for the currently detected
-    // tag and write the serial into the data array.
-    card_status = nfc.antiCollision(data);
-
-    if (card_status == MI_ERR) {
-      Serial.println("Error in serial checksum.");    
-    } 
-    else {
-      memcpy(tag, data, 5);  
+  // Check if we are ready to read again
+  if(read_tag_flag > 0) {  
+    // Check for card
+    if(nfc.readSerial(tag, type) > 0) {  
+      //      Serial.println("Tag detected.");
+      //      Serial.print("Type: ");
+      //      Serial.print(type[0], HEX);
+      //      Serial.print(", ");
+      //      Serial.println(type[1], HEX);
+        
+      // Add an event to the list
+      eventList.addEvent(event_type, tag);    
+      event_type = (0x34 == event_type) ? 0x30 : (event_type+1);
+      
+      // Wait 1 second before reading again
+      read_tag_flag = 0;
+      t.after(1000, SetReadFlag);
     }
-    // Stop the tag and get ready for reading a new tag.
-    nfc.haltTag();
-    
-    // Add an event to the list
-    eventList.addEvent(event_type, tag);    
-    event_type = (0x34 == event_type) ? 0x30 : (event_type+1);
   }   
 }
 
@@ -160,5 +147,9 @@ void DumpLogging() {
     event->ToSerial();
   }    
   Serial.println("---------");
+}
+
+void SetReadFlag() {
+  read_tag_flag = 1;
 }
 
