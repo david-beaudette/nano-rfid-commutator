@@ -7,6 +7,7 @@ https://github.com/monkeyboard/Wiegand-Protocol-Library-for-Arduino   -> commit 
 Additionally, the following project-related libraries are required (always use the latest version on GitHub):
 https://github.com/david-beaudette/MFRC522
 https://github.com/david-beaudette/AccessEvent
+https://github.com/david-beaudette/AccessTable
 
 To install libraries for the Arduino IDE, follow steps found at:
 http://arduino.cc/en/Guide/Libraries 

@@ -45,6 +45,15 @@ int read_tag_flag = 1;
 const int quickFlash = 500;    // duration in ms for quickly flashing a LED
 const int slowFlash  = 1000;   // duration in ms for slowly flashing a LED
 
+// Event type will cycle through the possible 
+// Type is one of the following:
+//  0x30 : ‘Attempt’ (first authorization in double authorization mode).
+//  0x31 : ‘Confirm’ (authorized user activated relay).
+//  0x32 : ‘Logout’  (authorized user deactivated relay).
+//  0x33 : ‘Fail’    (unauthorized user card detected).
+//  0x34 : ‘Unknown’ (unknown user card detected).
+int event_type = 0x30;
+
 void setup() {
   // Reset digital outputs
   pinMode(relayPin,  OUTPUT);
@@ -82,14 +91,6 @@ void setup() {
 }
 
 void loop() {
-  // Event type will cycle through the possible 
-  // Type is one of the following:
-  //  0x30 : ‘Attempt’ (first authorization in double authorization mode).
-  //  0x31 : ‘Confirm’ (authorized user activated relay).
-  //  0x32 : ‘Logout’  (authorized user deactivated relay).
-  //  0x33 : ‘Fail’    (unauthorized user card detected).
-  //  0x34 : ‘Unknown’ (unknown user card detected).
-  int event_type = 0x30;
   
   byte type[2];
   byte tag[4];
@@ -108,8 +109,10 @@ void loop() {
       //      Serial.println(type[1], HEX);
         
       // Add an event to the list
-      eventList.addEvent(event_type, tag);    
-      event_type = (0x34 == event_type) ? 0x30 : (event_type+1);
+      eventList.addEvent(event_type, tag);
+      
+      // Switch for next event type
+      event_type = (event_type == 0x34) ? 0x30 : event_type+1;
       
       // Wait 1 second before reading again
       read_tag_flag = 0;

@@ -28,7 +28,6 @@ const int quickFlash = 500;    // duration in ms for quickly flashing a LED
 #define READER_NUMBER B10000001     // ID for this device (starts with 1)
 
 // Variables that communicate with reader
-const byte mode = 0; // communication mode
 byte data[100];      // data buffer
 int status;          // return status for function calls
 // State variable
@@ -39,11 +38,11 @@ int state;  // one the following state:
             //  3 - Idle: Relay deactivated, wait for card or server command
             //  4 - TriggeredOnce: In dual RFID activation mode, valid RFID triggered: waiting for a second one
 
-// Data would normally go in EEPROM
+// Authorized users bank in program space
 const unsigned char authKeys[1024] PROGMEM = {0xB3, 0xED, 0xE6, 0xC7,
                                               0x5D, 0x84, 0xF7, 0x54, 
                                               0x70, 0x40, 0x84, 0x0B};
-int  numKeys = 0;
+int  numKeys = 3;
 
 MFRC522 nfc(rfSdaPin, rfResetPin);
 
@@ -103,10 +102,6 @@ void setup() {
   
   // Set state as idle
   state = 0;
-  
-  // For now update authorized keys table with hardcoded values
-  numKeys      = 3;
-  
 }
 
 void loop() {
