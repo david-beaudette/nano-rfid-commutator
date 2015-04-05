@@ -17,22 +17,13 @@
 #include <Event.h>
 #include <Timer.h>
 
+#include "nano_rfid_hal.h"
 #include "AccessEvent.h"
 #include "AccessTable.h"
 #include "LinkCommand.h"
 
-// GPIO pin numbers
-const int redLedPin   = 3;      // Red LED
-const int grnLedPin   = 4;      // Green LED
-const int radioCsnPin = 5;      // NRF24L01+ CSN signal
-const int radioCePin  = 6;      // NRF24L01+ CE signal
-const int relayPin    = 7;      // Relay
-const int rfResetPin  = 9;      // RC522 reset signal
-const int rfSdaPin    = 10;     // RC522 SDA signal
 
-// Other program constants
-const int quickFlash = 500;    // duration in ms for quickly flashing a LED
-const int slowFlash  = 1000;   // duration in ms for slowly flashing a LED
+#define DOUBLE_ACTIVATION_MODE 0
 
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
@@ -42,7 +33,8 @@ MFRC522 nfc(rfSdaPin, rfResetPin);
 
 // Declare timer object and global counter
 Timer t;
-unsigned long event_list_counter;
+// Using implicit zero-initialisation  
+unsigned long EventList::event_list_counter;
 
 // Declare table of events
 EventList eventList(&t, 50);
@@ -54,32 +46,21 @@ int read_tag_flag = 1;
 AccessTable table;
 
 // Declare commmand manager
-LinkCommand *link;
+LinkCommand link(&table, &eventList);
 
 // State variable
-int state;  // one the following state:  
-            //  0 - Enabled: As commanded by server: relay activated until told otherwise
-            //  1 - Disabled: As commanded by server: relay deactivated until told otherwise
-            //  2 - Activated: Valid RFID triggered: relay activated until valid RFID triggers
-            //  3 - Idle: Relay deactivated, wait for card or server command
-            //  4 - TriggeredOnce: In dual RFID activation mode, valid RFID triggered: waiting for a second one
+// System state variable
+sys_state_t state;  
 
 void setup() {
-  // Reset digital outputs
-  pinMode(relayPin,  OUTPUT);
-  pinMode(redLedPin, OUTPUT);
-  pinMode(grnLedPin, OUTPUT);
-  
-  digitalWrite(relayPin,  LOW);
-  digitalWrite(redLedPin, LOW);
-  digitalWrite(grnLedPin, LOW);
+  SetPins();
 
   SPI.begin();
   Serial.begin(115200);
   
   Serial.println("nano-rfid-commutator");
   Serial.println("Configuring NRF24L01+.");
-  link = new LinkCommand(&radio, &table, &eventList);
+  RadioConfig(&radio);
   
   Serial.println("Configuring MFRC522.");
   if (nfc.digitalSelfTestPass()) {
@@ -93,8 +74,8 @@ void setup() {
   
   nfc.begin();
   
-  // Set initial state as idle
-  state = 0;
+  // Set initial state
+  state = IDLE;
 }
 
 void loop() {
@@ -102,53 +83,107 @@ void loop() {
   byte type[2];
   byte tag[4];
   
-  // Update  timer
-  t.update();
+  // Initialise command buffer with 8 bytes, which 
+  // is 1 more than the longest command (table update)
+  byte cmd[7];
+  byte cmd_len;
   
+  // Processed length: if smaller than command length
+  // more than one command was probably received in 
+  // one packet
+  int  prc_len;
+  
+  // Initialise reply buffer with 10 bytes, which 
+  // is 1 more than the longest reply (dump logging)
+  byte reply[10];
+  byte reply_len;
+  
+  // Update timer
+  t.update();
+    
   // Check for received packet
-  if (radio.available())
+  if(radio.available())
   {
-    if(!link->processCommand(&state)) {
-      Serial.println("Fatal error with received command.");
-      Stall();
+    // Check number of bytes received
+    cmd_len = radio.getDynamicPayloadSize();
+    if(cmd_len > 0)
+    {   
+      // Read all command bytes from the receive buffer
+      radio.read(&cmd, cmd_len);
+      
+      // Flush buffers and switch to TX mode
+      radio.stopListening();
+      
+      // Let LinkCommand handle this command
+      prc_len = link.processCommand(cmd, reply, 
+                                    &reply_len, &state);
+      if(prc_len == -1) {
+        // Signal error in processing
+        Serial.println("Error processing received command.");
+        FlashLed(redLedPin, slowFlash, 5);
+        return;
+      }
+      // Reply to sender
+      if(!radio.write(reply, reply_len))   {
+        printf("Unable to reply to sender.\n\r");
+      }        
+      // Check if received packet contained another command
+      if(prc_len < cmd_len) {
+        Serial.println("At least one command was ignored in the packet...");
+      }
+      // Return to receiving state
+      radio.startListening();
     }
   }
-  // TODO: Check for proximity card
-  if(state > 1) {
+  // Check for proximity card
+  if(state > DISABLED) {
     // Neither in enabled nor disabled states
     // Check if we are ready to read again
     if(read_tag_flag > 0) {  
       // Check for card
       if(nfc.readSerial(tag, type) > 0) {  
         // Check if user is authorized
-        
-        //   
-        // Add an event to the list
-        eventList.addEvent(event_type, tag);
-        
+        switch(table.getUserAuth(tag)) {
+          case -1:
+            // User not found: add unknown loggin event
+            eventList.addEvent(0x34, tag);
+            break;
+          case 0:
+            // User not authorized
+            eventList.addEvent(0x33, tag);
+            break;
+          case 1:
+            // User authorized
+            switch(state) {
+              case ACTIVATED:
+                // User logs out
+                eventList.addEvent(0x32, tag);
+                state = IDLE;
+                break;
+              case IDLE:
+                if(DOUBLE_ACTIVATION_MODE) {
+                  // First user logs in
+                  eventList.addEvent(0x30, tag);
+                  state = TRIGGEREDONCE;
+                }
+                else {
+                  // Enable relay                  
+                  eventList.addEvent(0x31, tag);
+                  state = ACTIVATED;
+                }
+              case TRIGGEREDONCE:
+                  // Second user logs, enable relay                  
+                  eventList.addEvent(0x31, tag);
+                  state = ACTIVATED;
+                  break;
+            }
+            break;
+        }
         // Wait 1 second before reading again
         read_tag_flag = 0;
         t.after(1000, SetReadFlag);
       }
     }       
-  }
-}
-
-void FlashLed(const int pinNum, const int duration_ms, int num_times) {
-  for(int i = 0; i < num_times; i++) {
-    digitalWrite(pinNum, HIGH);
-    delay(duration_ms);
-    digitalWrite(pinNum, LOW);
-    if(i < (num_times-1)) {
-      delay(duration_ms);
-    }
-  }
-}
-
-void Stall() {
-  while(1) {
-    FlashLed(redLedPin, quickFlash, 2);
-    delay(2000);
   }
 }
 
