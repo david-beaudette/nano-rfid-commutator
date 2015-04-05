@@ -8,6 +8,8 @@ Additionally, the following project-related libraries are required (always use t
 https://github.com/david-beaudette/MFRC522
 https://github.com/david-beaudette/AccessEvent
 https://github.com/david-beaudette/AccessTable
+https://github.com/david-beaudette/LinkCommand
+https://github.com/david-beaudette/nano-rfid-hal
 
 To install libraries for the Arduino IDE, follow steps found at:
 http://arduino.cc/en/Guide/Libraries 
