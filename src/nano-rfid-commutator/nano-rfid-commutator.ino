@@ -76,6 +76,12 @@ void setup() {
   
   // Set initial state
   state = IDLE;
+  
+  // Create an event to flash green led every minute
+  int dumpEvent = t.every(30000, BlinkOk);
+  
+  // Print initial table content
+  table.print_table();
 }
 
 void loop() {
@@ -147,10 +153,12 @@ void loop() {
           case -1:
             // User not found: add unknown loggin event
             eventList.addEvent(0x34, tag);
+            FlashLed(redLedPin, slowFlash, 2);
             break;
           case 0:
             // User not authorized
             eventList.addEvent(0x33, tag);
+            FlashLed(redLedPin, slowFlash, 1);
             break;
           case 1:
             // User authorized
@@ -185,9 +193,25 @@ void loop() {
       }
     }       
   }
+  // Set relay and LEDs
+  if(state == ACTIVATED || state == ENABLED) {
+    // Activate relay
+    digitalWrite(relayPin,  HIGH);
+    digitalWrite(grnLedPin, HIGH);
+  }
+  else {
+    // Deactivate relay
+    digitalWrite(relayPin,  LOW);
+    digitalWrite(grnLedPin, LOW);
+  }
 }
 
 void SetReadFlag() {
   read_tag_flag = 1;
 }
 
+void BlinkOk() {
+  if(state != ACTIVATED && state != ENABLED) {
+    FlashLed(grnLedPin, slowFlash, 2);
+  }
+}
