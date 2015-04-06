@@ -13,19 +13,7 @@
 #include <SPI.h>
 #include <avr/pgmspace.h>
 
-// GPIO pin numbers
-const int redLedPin   = 3;      // Red LED
-const int grnLedPin   = 4;      // Green LED
-const int radioCsnPin = 5;      // NRF24L01+ CSN signal
-const int radioCePin  = 6;      // NRF24L01+ CE signal
-const int relayPin    = 7;      // Relay
-const int rfResetPin  = 9;      // RC522 reset signal
-const int rfSdaPin    = 10;     // RC522 SDA signal
-
-// Program constants
-const int quickFlash = 500;    // duration in ms for quickly flashing a LED
-
-#define READER_NUMBER B10000001     // ID for this device (starts with 1)
+#include "nano_rfid_hal.h"
 
 // Variables that communicate with reader
 byte data[100];      // data buffer
@@ -49,13 +37,7 @@ MFRC522 nfc(rfSdaPin, rfResetPin);
 
 void setup() {
   // Reset digital outputs
-  pinMode(relayPin,  OUTPUT);
-  pinMode(redLedPin, OUTPUT);
-  pinMode(grnLedPin, OUTPUT);
-  
-  digitalWrite(relayPin,  LOW);
-  digitalWrite(redLedPin, LOW);
-  digitalWrite(grnLedPin, LOW);
+  SetPins();
 
   SPI.begin();
   Serial.begin(115200);
@@ -65,25 +47,13 @@ void setup() {
     Serial.println("Digital self test by MFRC522 passed.");
   } else {
     Serial.println("Digital self test by MFRC522 failed.");
-    while(1) {
-      flashLed(redLedPin, quickFlash);
-      delay(quickFlash);
-      flashLed(redLedPin, quickFlash);
-      delay(2000);
-    }
+    Stall();
   }
 
   uint8_t version = nfc.getFirmwareVersion();
   if (! version) {
     Serial.print("Didn't find MFRC522 board.");
-    while(1) {
-      flashLed(redLedPin, quickFlash);
-      delay(quickFlash);
-      flashLed(redLedPin, quickFlash);
-      delay(quickFlash);
-      flashLed(redLedPin, quickFlash);
-      delay(2000);
-    }
+    Stall();
   }
 
   Serial.print("Found chip MFRC522 ");
@@ -92,11 +62,7 @@ void setup() {
   Serial.println(".");
   
   // Signal self-test success
-  flashLed(grnLedPin, quickFlash);
-  delay(quickFlash);
-  flashLed(grnLedPin, quickFlash);
-  delay(quickFlash);
-  flashLed(grnLedPin, quickFlash);
+  FlashLed(grnLedPin, quickFlash, 3);
   
   nfc.begin();
   
@@ -181,7 +147,7 @@ void loop() {
         }
       } 
       else {
-        flashLed(redLedPin, 2000);
+        FlashLed(grnLedPin, slowFlash, 1);
       }
     }
     // Stop the tag and get ready for reading a new tag.
@@ -191,8 +157,3 @@ void loop() {
   delay(1000);
 }
 
-void flashLed(const int pinNum, const int duration_ms) {
-  digitalWrite(pinNum, HIGH);
-  delay(duration_ms);
-  digitalWrite(pinNum, LOW);
-}
