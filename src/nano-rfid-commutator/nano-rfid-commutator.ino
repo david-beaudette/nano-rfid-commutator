@@ -22,8 +22,8 @@
 #include "AccessTable.h"
 #include "LinkCommand.h"
 
-
-#define DOUBLE_ACTIVATION_MODE 0
+// Define parameters that are proper to the programmed unit
+const uint8_t radioChannel = 3;
 
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
@@ -51,6 +51,8 @@ LinkCommand link(&table, &eventList);
 // State variable
 // System state variable
 sys_state_t state;  
+act_mode_t act_mode; 
+byte first_act_tag[4]; 
 
 void setup() {
   SetPins();
@@ -60,7 +62,7 @@ void setup() {
   
   Serial.println("nano-rfid-commutator");
   Serial.println("Configuring NRF24L01+.");
-  RadioConfig(&radio);
+  RadioConfig(&radio, radioChannel);
   
   Serial.println("Configuring MFRC522.");
   if (nfc.digitalSelfTestPass()) {
@@ -76,6 +78,7 @@ void setup() {
   
   // Set initial state
   state = IDLE;
+  act_mode = SINGLE;
   
   // Create an event to flash green led every minute
   int dumpEvent = t.every(30000, BlinkOk);
@@ -122,7 +125,9 @@ void loop() {
       
       // Let LinkCommand handle this command
       prc_len = link.processCommand(cmd, reply, 
-                                    &reply_len, &state);
+                                    &reply_len, 
+                                    &state,
+                                    &act_mode);
       if(prc_len == -1) {
         // Signal error in processing
         Serial.println("Error processing received command.");
@@ -151,7 +156,7 @@ void loop() {
         // Check if user is authorized
         switch(table.getUserAuth(tag)) {
           case -1:
-            // User not found: add unknown loggin event
+            // User not found: add unknown logging event
             eventList.addEvent(0x34, tag);
             FlashLed(redLedPin, slowFlash, 2);
             break;
@@ -169,10 +174,12 @@ void loop() {
                 state = IDLE;
                 break;
               case IDLE:
-                if(DOUBLE_ACTIVATION_MODE) {
+                if(act_mode == DOUBLE) {
                   // First user logs in
                   eventList.addEvent(0x30, tag);
                   state = TRIGGEREDONCE;
+                  memcpy(first_act_tag, tag, 4*sizeof(byte));
+                  t.after(5000, ResetFirstTag);
                 }
                 else {
                   // Enable relay                  
@@ -180,9 +187,21 @@ void loop() {
                   state = ACTIVATED;
                 }
               case TRIGGEREDONCE:
-                  // Second user logs, enable relay                  
-                  eventList.addEvent(0x31, tag);
-                  state = ACTIVATED;
+                  // Second user logs, enable relay
+                  int idx = 0;
+                  while(idx < 4 && 
+                        first_act_tag[idx] == tag[idx]) {
+                    idx++;
+                  }
+                  if(idx == 4) {
+                    // Same user logged twice
+                    eventList.addEvent(0x33, tag);
+                    FlashLed(redLedPin, slowFlash, 1);
+                  } 
+                  else {
+                    eventList.addEvent(0x31, tag);
+                    state = ACTIVATED;                    
+                  }
                   break;
             }
             break;
@@ -208,6 +227,10 @@ void loop() {
 
 void SetReadFlag() {
   read_tag_flag = 1;
+}
+
+void ResetFirstTag() {
+  state = IDLE;
 }
 
 void BlinkOk() {
