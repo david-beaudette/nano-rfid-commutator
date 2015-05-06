@@ -158,12 +158,12 @@ void loop() {
           case -1:
             // User not found: add unknown logging event
             eventList.addEvent(0x34, tag);
-            FlashLed(redLedPin, slowFlash, 2);
+            FlashLed(redLedPin, quickFlash, 2);
             break;
           case 0:
             // User not authorized
             eventList.addEvent(0x33, tag);
-            FlashLed(redLedPin, slowFlash, 1);
+            FlashLed(redLedPin, quickFlash, 1);
             break;
           case 1:
             // User authorized
@@ -196,7 +196,7 @@ void loop() {
                   if(idx == 4) {
                     // Same user logged twice
                     eventList.addEvent(0x33, tag);
-                    FlashLed(redLedPin, slowFlash, 1);
+                    FlashLed(redLedPin, quickFlash, 1);
                   } 
                   else {
                     eventList.addEvent(0x31, tag);
@@ -216,12 +216,20 @@ void loop() {
   if(state == ACTIVATED || state == ENABLED) {
     // Activate relay
     digitalWrite(relayPin,  HIGH);
+    digitalWrite(redLedPin, LOW);
     digitalWrite(grnLedPin, HIGH);
+  }
+  else if(state == DISABLED) {
+    // Activate relay
+    digitalWrite(relayPin,  LOW);
+    digitalWrite(grnLedPin, LOW);
+    digitalWrite(redLedPin, HIGH);
   }
   else {
     // Deactivate relay
     digitalWrite(relayPin,  LOW);
     digitalWrite(grnLedPin, LOW);
+    digitalWrite(redLedPin, LOW);
   }
 }
 
@@ -235,6 +243,6 @@ void ResetFirstTag() {
 
 void BlinkOk() {
   if(state != ACTIVATED && state != ENABLED) {
-    FlashLed(grnLedPin, slowFlash, 2);
+    FlashLed(grnLedPin, quickFlash, 2);
   }
 }
