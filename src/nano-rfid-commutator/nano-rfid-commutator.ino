@@ -12,6 +12,7 @@
 #include <EEPROM.h>
 
 #include <MFRC522.h>
+#include <Wiegand.h>
 #include <nRF24L01.h>
 #include <RF24.h>
 #include <Event.h>
@@ -28,8 +29,9 @@ const uint8_t radioChannel = 3;
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
 
-// Declare card reader
+// Declare card readers
 MFRC522 nfc(rfSdaPin, rfResetPin);
+WIEGAND wg;
 
 // Declare timer object and global counter
 Timer t;
@@ -74,8 +76,10 @@ void setup() {
   // Signal self-test success
   FlashLed(grnLedPin, quickFlash, 3);
   
+  // Initialise card readers
   nfc.begin();
-  
+  wg.begin();
+ 
   // Set initial state
   state = IDLE;
   act_mode = SINGLE;
@@ -91,6 +95,7 @@ void loop() {
   // Detected card type and tag
   byte type[2];
   byte tag[4];
+  byte tag_read_len;
   
   // Initialise command buffer with 8 bytes, which 
   // is 1 more than the longest command (table update)
@@ -152,9 +157,19 @@ void loop() {
     // Check if we are ready to read again
     if(read_tag_flag > 0) {  
       // Check for card
-      if(nfc.readSerial(tag, type) > 0) {  
+      tag_read_len = 0;
+      if(nfc.readSerial(tag, type) > 0) {
+        tag_read_len = 4;
+      }
+      if(wg.available()) {
+        // Wiegand reader only reads 3/4 bytes
+        wg.getCode(tag);
+        tag_read_len = 3;
+      }
+      // Check if one of the two readers has something
+      if(tag_read_len > 0) {  
         // Check if user is authorized
-        switch(table.getUserAuth(tag)) {
+        switch(table.getUserAuth(tag, tag_read_len)) {
           case -1:
             // User not found: add unknown logging event
             eventList.addEvent(0x34, tag);
@@ -231,6 +246,7 @@ void loop() {
     digitalWrite(grnLedPin, LOW);
     digitalWrite(redLedPin, LOW);
   }
+  delay(loopRate);
 }
 
 void SetReadFlag() {

@@ -10,6 +10,7 @@
 */
 
 #include "MFRC522.h"
+#include "Wiegand.h"
 #include <SPI.h>
 #include <avr/pgmspace.h>
 
@@ -33,7 +34,7 @@ const unsigned char authKeys[1024] PROGMEM = {0xB3, 0xED, 0xE6, 0xC7,
 int  numKeys = 3;
 
 MFRC522 nfc(rfSdaPin, rfResetPin);
-
+WIEGAND wg;
 
 void setup() {
   // Reset digital outputs
@@ -65,6 +66,7 @@ void setup() {
   FlashLed(grnLedPin, quickFlash, 3);
   
   nfc.begin();
+  wg.begin();
   
   // Set state as idle
   state = 0;
@@ -147,13 +149,69 @@ void loop() {
         }
       } 
       else {
-        FlashLed(grnLedPin, slowFlash, 1);
+        FlashLed(redLedPin, slowFlash, 1);
       }
     }
     // Stop the tag and get ready for reading a new tag.
     nfc.haltTag();
+    
   } 
   
+  if(wg.available())
+  {
+    wg.getCode(serial);
+    Serial.println("The serial nb of the tag is:");
+    for (i = 0; i < 3; i++) {
+      Serial.print(serial[i], HEX);
+      Serial.print(", ");
+    }
+    Serial.println(serial[3], HEX);
+    tableIdx = -1;
+    // Check if this tag is authorized
+    Serial.println("Comparing keys.");
+    for(curKey = 0; curKey < numKeys; curKey++) {
+      Serial.print("Comparing key #");
+      Serial.print(curKey);
+      Serial.print(" with serial number ");
+      for (i = 0; i < 3; i++) {
+        Serial.print(pgm_read_byte_near(authKeys + curKey*4 + i), HEX);
+        Serial.print(", ");
+      }
+      Serial.println(pgm_read_byte_near(authKeys + curKey*4 + 3), HEX);
+      i = 0;
+      // ONLY 3 BYTES ARE RETURNED BY THE WIEGAND READER!!!
+      while(pgm_read_byte_near(authKeys + curKey*4 + i) == serial[i] && i < 3) {
+         i++;
+      }
+      if(i == 3) {
+        // All bytes compared equal
+        tableIdx = curKey;
+        break;
+      }
+    }     
+    if(tableIdx >= 0) {
+      switch(state) {
+        case 0:
+          // Activate relay
+          digitalWrite(relayPin,  HIGH);
+          digitalWrite(grnLedPin, HIGH);
+          Serial.println("Authorized. Activating relay.");    
+          state = 1;
+          delay(2000);
+          break;
+        default:
+          // Deactivate relay
+          digitalWrite(relayPin,  LOW);
+          digitalWrite(grnLedPin, LOW);
+          Serial.println("Authorized. De activating relay.");    
+          state = 0;
+          delay(2000);
+      }
+    } 
+    else {
+      FlashLed(redLedPin, slowFlash, 1);
+    }
+  }
   delay(1000);
 }
 
