@@ -2,7 +2,6 @@ The following 3rd party libraries are required (.zip are included and correspond
 
 https://github.com/maniacbug/RF24                                     -> commit ebcd0d1d0b3061fcb57444e1dbe5829ef25705cd
 https://github.com/JChristensen/Timer                                 -> commit 373a2cfcee6587b98b138f06a7a2d57def63b8c4
-https://github.com/monkeyboard/Wiegand-Protocol-Library-for-Arduino   -> commit 6efe59c4af176697671152f02d38a8de971763d7
 
 Additionally, the following project-related libraries are required (always use the latest version on GitHub):
 https://github.com/david-beaudette/MFRC522
@@ -10,6 +9,7 @@ https://github.com/david-beaudette/AccessEvent
 https://github.com/david-beaudette/AccessTable
 https://github.com/david-beaudette/LinkCommand
 https://github.com/david-beaudette/nano-rfid-hal
+https://github.com/david-beaudette/Wiegand-Protocol-Library-for-Arduino/
 
 To install libraries for the Arduino IDE, follow steps found at:
 http://arduino.cc/en/Guide/Libraries 
