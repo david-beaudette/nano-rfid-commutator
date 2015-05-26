@@ -1,4 +1,4 @@
-/* La Fabrique
+/** La Fabrique
 
    RFID Commutator on Arduino Nano 
    by David Beaudette
@@ -6,7 +6,7 @@
    Code that answers commands from the access server and
    detects proximity cards.
    
-*/
+**/
 
 #include <SPI.h>
 #include <EEPROM.h>
@@ -24,7 +24,7 @@
 #include "LinkCommand.h"
 
 // Define parameters that are proper to the programmed unit
-const uint8_t radioChannel = 3;
+const uint8_t radioChannel = 1;
 
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
@@ -50,11 +50,14 @@ AccessTable table;
 // Declare commmand manager
 LinkCommand link(&table, &eventList);
 
-// State variable
-// System state variable
+// State variables
 sys_state_t state;  
 act_mode_t act_mode; 
 byte first_act_tag[4]; 
+
+// Led flashing state
+int green_flash_delay  = 0;
+int green_flash_remain = 0;
 
 void setup() {
   SetPins();
@@ -84,8 +87,6 @@ void setup() {
   state = IDLE;
   act_mode = SINGLE;
   
-  // Create an event to flash green led every minute
-  int dumpEvent = t.every(30000, BlinkOk);
   
   // Print initial table content
   table.print_table();
@@ -136,7 +137,6 @@ void loop() {
       if(prc_len == -1) {
         // Signal error in processing
         Serial.println("Error processing received command.");
-        FlashLed(redLedPin, slowFlash, 5);
         return;
       }
       // Reply to sender
@@ -193,7 +193,7 @@ void loop() {
                   // First user logs in
                   eventList.addEvent(0x30, tag);
                   state = TRIGGEREDONCE;
-                  memcpy(first_act_tag, tag, 4*sizeof(byte));
+                  memcpy(first_act_tag, tag, tag_read_len*sizeof(byte));
                   t.after(5000, ResetFirstTag);
                 }
                 else {
@@ -204,11 +204,11 @@ void loop() {
               case TRIGGEREDONCE:
                   // Second user logs, enable relay
                   int idx = 0;
-                  while(idx < 4 && 
+                  while(idx < tag_read_len && 
                         first_act_tag[idx] == tag[idx]) {
                     idx++;
                   }
-                  if(idx == 4) {
+                  if(idx == tag_read_len) {
                     // Same user logged twice
                     eventList.addEvent(0x33, tag);
                     FlashLed(redLedPin, quickFlash, 1);
@@ -223,7 +223,7 @@ void loop() {
         }
         // Wait 1 second before reading again
         read_tag_flag = 0;
-        t.after(1000, SetReadFlag);
+        t.after(cardReadDelay, SetReadFlag);
       }
     }       
   }
@@ -259,6 +259,26 @@ void ResetFirstTag() {
 
 void BlinkOk() {
   if(state != ACTIVATED && state != ENABLED) {
-    FlashLed(grnLedPin, quickFlash, 2);
+    StartGreenFlash(quickFlash, 2);
+  }
+}
+
+void StartGreenFlash(const int duration_ms, int num_times) {
+  green_flash_delay  = duration_ms;
+  green_flash_remain = num_times;
+  digitalWrite(grnLedPin, HIGH);
+  t.after(green_flash_delay, BlinkGreenLow);
+}
+
+void BlinkGreenHigh() {
+  digitalWrite(grnLedPin, HIGH);
+  t.after(green_flash_delay, BlinkGreenLow);  
+}
+
+void BlinkGreenLow() {
+  digitalWrite(grnLedPin, LOW);
+  green_flash_remain -= 1;
+  if(green_flash_remain > 0) {
+    t.after(green_flash_delay, BlinkGreenHigh);
   }
 }
