@@ -87,6 +87,8 @@ void setup() {
   state = IDLE;
   act_mode = SINGLE;
   
+  // Create an event to flash green led periodically
+  int dumpEvent = t.every(blinkPeriod, BlinkOk);
   
   // Print initial table content
   table.print_table();
