@@ -24,7 +24,7 @@
 #include "LinkCommand.h"
 
 // Define parameters that are proper to the programmed unit
-const uint8_t radioChannel = 1;
+const uint8_t radioChannel = 3;
 
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
@@ -203,23 +203,24 @@ void loop() {
                   eventList.addEvent(0x31, tag);
                   state = ACTIVATED;
                 }
+                break;
               case TRIGGEREDONCE:
-                  // Second user logs, enable relay
-                  int idx = 0;
-                  while(idx < tag_read_len && 
-                        first_act_tag[idx] == tag[idx]) {
-                    idx++;
-                  }
-                  if(idx == tag_read_len) {
-                    // Same user logged twice
-                    eventList.addEvent(0x33, tag);
-                    FlashLed(redLedPin, quickFlash, 1);
-                  } 
-                  else {
-                    eventList.addEvent(0x31, tag);
-                    state = ACTIVATED;                    
-                  }
-                  break;
+                // Second user logs, enable relay
+                int idx = 0;
+                while(idx < tag_read_len && 
+                      first_act_tag[idx] == tag[idx]) {
+                  idx++;
+                }
+                if(idx == tag_read_len) {
+                  // Same user logged twice
+                  eventList.addEvent(0x33, tag);
+                  FlashLed(redLedPin, quickFlash, 1);
+                } 
+                else {
+                  eventList.addEvent(0x31, tag);
+                  state = ACTIVATED;                    
+                }
+                break;
             }
             break;
         }
@@ -256,7 +257,9 @@ void SetReadFlag() {
 }
 
 void ResetFirstTag() {
-  state = IDLE;
+  if(act_mode == DOUBLE && state == TRIGGEREDONCE) {
+    state = IDLE;
+  }
 }
 
 void BlinkOk() {
