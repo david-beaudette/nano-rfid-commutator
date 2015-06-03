@@ -197,6 +197,7 @@ void loop() {
                   state = TRIGGEREDONCE;
                   memcpy(first_act_tag, tag, tag_read_len*sizeof(byte));
                   t.after(5000, ResetFirstTag);
+                  FlashLed(grnLedPin, quickFlash, 1);
                 }
                 else {
                   // Enable relay                  
