@@ -25,6 +25,8 @@
 
 // Define parameters that are proper to the programmed unit
 const uint8_t radioChannel = 1;
+// For doorlock commutator or similar device
+const uint8_t isDoorCommutator = 0;
 
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
@@ -205,11 +207,15 @@ void loop() {
                   // Enable relay                  
                   eventList.addEvent(0x31, tag);
                   state = ACTIVATED;
+                  if(isDoorCommutator) {
+                    t.after(doorEnableTime_ms, DisableDoor);
+                  }
                 }
                 break;
               case TRIGGEREDONCE:
                 // Second user logs, enable relay
                 int idx = 0;
+                // Compare current tag with first tag read
                 while(idx < tag_read_len && 
                       first_act_tag[idx] == tag[idx]) {
                   idx++;
@@ -261,6 +267,12 @@ void SetReadFlag() {
 
 void ResetFirstTag() {
   if(act_mode == DOUBLE && state == TRIGGEREDONCE) {
+    state = IDLE;
+  }
+}
+
+void DisableDoor() {
+  if(state == ACTIVATED) {
     state = IDLE;
   }
 }
