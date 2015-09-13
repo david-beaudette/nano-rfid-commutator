@@ -24,7 +24,7 @@
 #include "LinkCommand.h"
 
 // Define parameters that are proper to the programmed unit
-const uint8_t radioChannel = 3;
+const uint8_t radioChannel = 1;
 
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
@@ -65,15 +65,15 @@ void setup() {
   SPI.begin();
   Serial.begin(115200);
   
-  Serial.println("nano-rfid-commutator");
-  Serial.println("Configuring NRF24L01+.");
+  Serial.println(F("nano-rfid-commutator"));
+  Serial.println(F("Configuring NRF24L01+."));
   RadioConfig(&radio, radioChannel);
   
-  Serial.println("Configuring MFRC522.");
+  Serial.println(F("Configuring MFRC522."));
   if (nfc.digitalSelfTestPass()) {
-    Serial.println("Digital self test by MFRC522 passed.");
+    Serial.println(F("Digital self test by MFRC522 passed."));
   } else {
-    Serial.println("Digital self test by MFRC522 failed.");
+    Serial.println(F("Digital self test by MFRC522 failed."));
     Stall();
   }  
   // Signal self-test success
@@ -138,16 +138,16 @@ void loop() {
                                     &act_mode);
       if(prc_len == -1) {
         // Signal error in processing
-        Serial.println("Error processing received command.");
+        Serial.println(F("Error processing received command."));
         return;
       }
       // Reply to sender
       if(!radio.write(reply, reply_len))   {
-        printf("Unable to reply to sender.\n\r");
+        Serial.println(F("Unable to reply to sender."));
       }        
       // Check if received packet contained another command
       if(prc_len < cmd_len) {
-        Serial.println("At least one command was ignored in the packet...");
+        Serial.println(F("At least one command was ignored in the packet..."));
       }
       // Return to receiving state
       radio.startListening();
@@ -170,6 +170,8 @@ void loop() {
       }
       // Check if one of the two readers has something
       if(tag_read_len > 0) {  
+        // Print read tag
+        PrintTag(tag, tag_read_len);
         // Check if user is authorized
         switch(table.getUserAuth(tag, tag_read_len)) {
           case -1:
@@ -288,3 +290,13 @@ void BlinkGreenLow() {
     t.after(green_flash_delay, BlinkGreenHigh);
   }
 }
+
+void PrintTag(byte *serial, int tag_len) {
+  Serial.println(F("The serial nb of the tag is:"));
+  for (int i = 0; i < (tag_len-1); i++) {
+    Serial.print(serial[i], HEX);
+    Serial.print(F(", "));
+  }
+  Serial.println(serial[tag_len-1], HEX);
+}
+
