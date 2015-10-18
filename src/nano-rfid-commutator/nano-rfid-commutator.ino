@@ -9,7 +9,7 @@
 **/
 
 #include <SPI.h>
-#include <EEPROM.h>
+#include <spieeprom.h>
 
 #include <MFRC522.h>
 #include <Wiegand.h>
@@ -47,7 +47,7 @@ EventList eventList(&t, 50);
 int read_tag_flag = 1;
 
 // Declare table of users
-AccessTable table;
+AccessTable table(spiEpromPin);
 
 // Declare commmand manager
 LinkCommand link(&table, &eventList);
