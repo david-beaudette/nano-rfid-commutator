@@ -24,9 +24,9 @@
 #include "LinkCommand.h"
 
 // Define parameters that are proper to the programmed unit
-const uint8_t radioChannel = 1;
+const uint8_t radioChannel = 3;
 // For doorlock commutator or similar device
-const uint8_t isDoorCommutator = 0;
+const uint8_t isDoorCommutator = 1;
 
 // Declare radio
 RF24 radio(radioCePin, radioCsnPin);
@@ -305,10 +305,10 @@ void BlinkGreenLow() {
 
 void PrintTag(byte *serial, int tag_len) {
   Serial.println(F("The serial nb of the tag is:"));
-  for (int i = 0; i < (tag_len-1); i++) {
+  for (int i = 0; i < tag_len; i++) {
     Serial.print(serial[i], HEX);
-    Serial.print(F(", "));
   }
-  Serial.println(serial[tag_len-1], HEX);
+  Serial.println(F(" "));
+
 }
 
